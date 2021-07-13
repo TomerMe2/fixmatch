@@ -164,7 +164,7 @@ class SimpleCNN(ClassifySemi):
             y = tf.layers.batch_normalization(y, **bn_args)
             y = tf.layers.max_pooling2d(y, 2, 2)
 
-            y = tf.flatten(y)
+            y = tf.layers.flatten(y)
             logits = tf.layers.dense(y, self.nclass)
 
 
