@@ -145,6 +145,32 @@ class ShakeNet(ClassifySemi):
         return EasyDict(logits=logits, embeds=embeds)
 
 
+class SimpleCNN(ClassifySemi):
+    """A very simple CNN"""
+
+    def classifier(self, x, scales, filters, training, getter=None, **kwargs):
+        del kwargs
+        assert scales == 3  # Only specified for 32x32 inputs.
+        conv_args = dict(kernel_size=3, activation=tf.nn.leaky_relu, padding='same')
+        bn_args = dict(training=training, momentum=0.999)
+
+        with tf.variable_scope('classify', reuse=tf.AUTO_REUSE, custom_getter=getter):
+            y = tf.layers.conv2d((x - self.dataset.mean) / self.dataset.std, filters, **conv_args)
+            y = tf.layers.batch_normalization(y, **bn_args)
+            y = tf.layers.max_pooling2d(y, 2, 2)
+
+
+            y = tf.layers.conv2d(y, filters, **conv_args)
+            y = tf.layers.batch_normalization(y, **bn_args)
+            y = tf.layers.max_pooling2d(y, 2, 2)
+
+            y = tf.flatten(y)
+            logits = tf.layers.dense(y, self.nclass)
+
+
+        return EasyDict(logits=logits, embeds=y)
+
+
 class MultiModel(CNN13, ResNet, ShakeNet):
     MODELS = ('cnn13', 'resnet', 'shake')
     MODEL_CNN13, MODEL_RESNET, MODEL_SHAKE = MODELS
@@ -154,6 +180,8 @@ class MultiModel(CNN13, ResNet, ShakeNet):
         return x, l - smoothing * (l - 1. / self.nclass)
 
     def classifier(self, x, arch, **kwargs):
+        return SimpleCNN.classifier(self, x, **kwargs)
+        # The rest of the models are not used...
         if arch == self.MODEL_CNN13:
             return CNN13.classifier(self, x, **kwargs)
         elif arch == self.MODEL_RESNET:
